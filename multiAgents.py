@@ -69,8 +69,16 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
+
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        """ 
+        general strategy: 
+        1. don't get eaten = move away from ghosts -> maximize distance from nearest ghost
+        2. eat food = move towards food -> minimize distance
+        """
+        
+        numNewFood = successorGameState.getNumFood()
+        return successorGameState.getScore()-numNewFood
 
 def scoreEvaluationFunction(currentGameState):
     """
