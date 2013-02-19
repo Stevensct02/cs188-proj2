@@ -400,7 +400,7 @@ def betterEvaluationFunction(currentGameState):
         if md < nearestGhostDistance:
           nearestGhostDistance = md
       #for scared ghosts, evaluate them as 200 points, minus the distance they are away.
-      else:
+      elif ghost.scaredTimer > md:
         ghostEval += 200 - md
 
     if nearestGhostDistance == float("inf"):
@@ -414,19 +414,171 @@ def betterEvaluationFunction(currentGameState):
 # Abbreviation
 better = betterEvaluationFunction
 
+
+
+# right now our extra credit contest agent simply runs an alpha-beta prune, using the "betterEvalFunction" from q5, with a search depth
+# of 4. the score it gets is ~2000...we need an extra bump. I'd like to be able to see the map and ghosts and get a better idea
+# what the competition is. It does better when the depth is smaller.. wonder why that is. These ghosts must not be playing to our eval function.
 class ContestAgent(MultiAgentSearchAgent):
     """
       Your agent for the mini-contest
     """
+    
+
+    def max_prune(self, gameState, depth, agentIndex, alpha, beta):
+      # init the variables
+      maxEval= float("-inf")
+
+      # if this is a leaf node with no more actions, return the evaluation function at this state
+      if len(gameState.getLegalActions(0)) == 0:
+        return self.evaluationFunction(gameState)
+
+      # otherwise, for evert action, find the successor, and run the minimize function on it. when a value
+      # is returned, check to see if it's a new max value (or if it's bigger than the minimizer's best, then prune)
+      for action in gameState.getLegalActions(0):
+        successor = gameState.generateSuccessor(0, action)
+        
+        # run minimize (the minimize function will stack ghost responses)
+        tempEval = self.min_prune(successor, depth, 1, alpha, beta)
+
+        #prune
+        if tempEval > beta:
+          return tempEval
+
+        if tempEval > maxEval:
+          maxEval = tempEval
+          maxAction = action
+
+        #reassign alpha
+        alpha = max(alpha, maxEval)
+
+      # if this is the first depth, then we're trying to return an ACTION to take. otherwise, we're returning a number. This
+      # could theoretically be a tuple with both, but i'm lazy.
+      if depth == 1:
+        return maxAction
+      else:
+        return maxEval
+
+
+
+    def min_prune(self, gameState, depth, agentIndex, alpha, beta):
+      minEval= float("inf")
+
+      # we don't know how many ghosts there are, so we have to run minimize
+      # on a general case based off the number of agents
+      numAgents = gameState.getNumAgents()
+
+      # if a leaf node, return the eval function!
+      if len(gameState.getLegalActions(agentIndex)) == 0:
+        return self.evaluationFunction(gameState)
+
+      # for every move possible by this ghost
+      for action in gameState.getLegalActions(agentIndex):
+        successor = gameState.generateSuccessor(agentIndex, action)
+      
+        # if this is the last ghost to minimize
+        if agentIndex == numAgents - 1:
+          # if we are at our depth limit, return the eval function
+          if depth == self.depth:
+            tempEval = self.evaluationFunction(successor)
+          else:
+            #maximize!
+            tempEval = self.max_prune(successor, depth+1, 0, alpha, beta)
+
+        # pass this state on to the next ghost
+        else:
+          tempEval = self.min_prune(successor, depth, agentIndex+1, alpha, beta)
+
+        #prune
+        if tempEval < alpha:
+          return tempEval
+        if tempEval < minEval:
+          minEval = tempEval
+          minAction = action
+
+        # new beta
+        beta = min(beta, minEval)
+      return minEval
 
     def getAction(self, gameState):
         """
-          Returns an action.  You can use any method you want and search to any depth you want.
-          Just remember that the mini-contest is timed, so you have to trade off speed and computation.
-
-          Ghosts don't behave randomly anymore, but they aren't perfect either -- they'll usually
-          just make a beeline straight towards Pacman (or away from him if they're scared!)
+          Returns the minimax action using self.depth and self.evaluationFunction
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        self.evaluationFunction = ecEvaluationFunction
+        self.depth = 4
+        maxAction = self.max_prune(gameState, 1, 0, float("-inf"), float("inf"))
+        return maxAction
+
+# the evaluation function used in the extra credit.
+def ecEvaluationFunction(currentGameState):
+    """
+      Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
+      evaluation function (question 5).
+
+      DESCRIPTION: Our evaluation function begins with the current game score; this helps maintain rewards for going fast and eating ghosts,
+      so it is the starting point from which the evaluation function adds and subtracts. By weighting it this way, small things like food pellets
+      and time are put into a correct points perspective.
+
+      To encourage pacman to eat food, we subtract 10 points for every food still left in the game. This is a 10 point reward for eating food; just
+      like the in game score.
+
+      To encourage pacman to not die by ghost, we find the nearest maze distance [EDIT: MAZEDISTANCE IS OUR BOTTLENECK] to a ghost and add 20 points for every maze distance away the
+      ghost is. This utilizes our search algorithms (and the maze distance heuristic) from project 1.
+
+      However, pacman can earn points by eating a ghost (if they are scared), and definitely doesn't need to stay away from them! In this case,
+      the heuristic we use to measure a ghost's worth is 20 (scaled for the 200 points you get in game for eating a ghost) minus the distance to
+      that ghost (the amount of time it take to reach it)
+
+    """
+    from searchAgents import mazeDistance
+    foods = currentGameState.getFood().asList()
+    ghostStates = currentGameState.getGhostStates()
+    position = currentGameState.getPacmanPosition()
+    foodcount = currentGameState.getNumFood()
+    score = currentGameState.getScore()
+    # the amount of food that can be remaining by which point it is not too inefficient to use a mazeDistance heuristic on
+    # all foods.
+
+    mazeDistanceFoodCutoff = 20
+
+    nearestGhostDistance = float("inf")
+
+    # evaluate the current state of the ghosts
+    ghostEval = 0
+    for ghost in ghostStates:
+      ghostPosition = (int(ghost.getPosition()[0]), int(ghost.getPosition()[1]))
+      md = mazeDistance(position, ghostPosition, currentGameState)
+
+      if ghost.scaredTimer == 0:
+        if md < nearestGhostDistance:
+          nearestGhostDistance = md
+      #for scared ghosts, evaluate them as 200 points, minus the distance they are away.
+      elif ghost.scaredTimer > md:
+        ghostEval += 200 - md
+
+    if nearestGhostDistance == float("inf"):
+      nearestGhostDistance = 0
+
+    ghostEval += nearestGhostDistance
+
+    # find closest food. WE WANT TO BE NEAR THESE! However, mazedistance is inefficient since it runs a 
+    # bfs on all food. thus, only late game can we afford to use it.
+    closestfood = float("inf")
+    if len(foods) < mazeDistanceFoodCutoff:
+      for food in foods:
+        md = mazeDistance(position, food, currentGameState)
+        if md < closestfood:
+          closestfood = md
+      if closestfood == float("inf"):
+        closestfood = 1
+    else:
+      for food in foods:
+        md = manhattanDistance(position, food)
+        if md < closestfood:
+          closestfood = md
+        if closestfood == float("inf"):
+          closestfood = 1
+    return score - 10*foodcount + 10*ghostEval + 20.0/closestfood 
+
+        
 
