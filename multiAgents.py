@@ -136,6 +136,53 @@ class MinimaxAgent(MultiAgentSearchAgent):
       Your minimax agent (question 2)
     """
 
+    def maximize(self, gameState, depth, agentIndex):
+      maxEval= float("-inf")
+      if len(gameState.getLegalActions(0)) == 0:
+        return self.evaluationFunction(gameState)
+      for action in gameState.getLegalActions(0):
+        successor = gameState.generateSuccessor(0, action)
+        
+        # run minimize (the minimize function will stack ghost responses)
+        tempEval = self.minimize(successor, depth, 1)
+        if tempEval > maxEval:
+          maxEval = tempEval
+          maxAction = action
+
+      # if this is the first depth, then we're trying to return an ACTION to take. otherwise, we're returning a number. This
+      # could theoretically be a tuple with both, but i'm lazy.
+      if depth == 1:
+        return maxAction
+      else:
+        return maxEval
+
+
+
+    def minimize(self, gameState, depth, agentIndex):
+      minEval= float("inf")
+      numAgents = gameState.getNumAgents()
+      if len(gameState.getLegalActions(agentIndex)) == 0:
+        return self.evaluationFunction(gameState)
+      for action in gameState.getLegalActions(agentIndex):
+        successor = gameState.generateSuccessor(agentIndex, action)
+        # if this is the last ghost..
+        if agentIndex == numAgents - 1:
+          # if we are at our depth limit...
+          if depth == self.depth:
+            tempEval = self.evaluationFunction(successor)
+          else:
+            #maximize!
+            tempEval = self.maximize(successor, depth+1, 0)
+        # we have to minimize with another ghost still.
+        else:
+          tempEval = self.minimize(successor, depth, agentIndex+1)
+
+        if tempEval < minEval:
+          minEval = tempEval
+          minAction = action
+
+      return minEval
+
     def getAction(self, gameState):
         """
           Returns the minimax action from the current gameState using self.depth
@@ -154,7 +201,11 @@ class MinimaxAgent(MultiAgentSearchAgent):
             Returns the total number of agents in the game
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # maximize legal pacman moves.
+        maxAction = self.maximize(gameState, 1, 0)
+        return maxAction
+        
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
