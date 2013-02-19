@@ -69,16 +69,37 @@ class ReflexAgent(Agent):
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
+        ghostdists = []
+        fooddists = []
+        for ghostState in newGhostStates:
+          if ghostState.scaredTimer == 0:
+            ghostdists.append(manhattanDistance(newPos, ghostState.getPosition()))
 
-        "*** YOUR CODE HERE ***"
-        """ 
-        general strategy: 
-        1. don't get eaten = move away from ghosts -> maximize distance from nearest ghost
-        2. eat food = move towards food -> minimize distance
-        """
+        ghostdists.sort()
         
+        for food in newFood.asList():
+            fooddists.append(manhattanDistance(newPos, food))
+
+        fooddists.sort()
+
+        if len(fooddists) > 0:
+          closestFoodManhattan = fooddists[0]
+        else:
+          closestFoodManhattan = 0
+
         numNewFood = successorGameState.getNumFood()
-        return successorGameState.getScore()-numNewFood
+
+        ghostEvalFunc = 0
+        for ghost in newGhostStates:
+          ghostdist = manhattanDistance(newPos, ghost.getPosition())
+          if ghost.scaredTimer > ghostdist:
+            ghostEvalFunc += ghost.scaredTimer - ghostdist
+
+        # if there is a ghost in play that isn't scared, stay away from the nearest one.
+        if len(ghostdists) > 0:
+          ghostEvalFunc += ghostdists[0]
+
+        return ghostEvalFunc -10*numNewFood - closestFoodManhattan
 
 def scoreEvaluationFunction(currentGameState):
     """
