@@ -200,7 +200,6 @@ class MinimaxAgent(MultiAgentSearchAgent):
           gameState.getNumAgents():
             Returns the total number of agents in the game
         """
-        "*** YOUR CODE HERE ***"
         # maximize legal pacman moves.
         maxAction = self.maximize(gameState, 1, 0)
         return maxAction
@@ -298,6 +297,60 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     """
       Your expectimax agent (question 4)
     """
+    def maximize(self, gameState, depth, agentIndex):
+      maxEval= float("-inf")
+      if len(gameState.getLegalActions(0)) == 0:
+        return self.evaluationFunction(gameState)
+
+
+      for action in gameState.getLegalActions(0):
+        successor = gameState.generateSuccessor(0, action)
+        
+        # run minimize (the minimize function will stack ghost responses)
+        tempEval = self.minimize(successor, depth, 1)
+        if tempEval > maxEval:
+          maxEval = tempEval
+          maxAction = action
+
+      # if this is the first depth, then we're trying to return an ACTION to take. otherwise, we're returning a number. This
+      # could theoretically be a tuple with both, but i'm lazy.
+      if depth == 1:
+        return maxAction
+      else:
+        return maxEval
+
+
+
+    def minimize(self, gameState, depth, agentIndex):
+
+      # we will add to this evaluation based on an even weighting of each action.
+      minEval= 0
+      numAgents = gameState.getNumAgents()
+      legalActions = gameState.getLegalActions(agentIndex)
+      if len(legalActions) == 0:
+        return self.evaluationFunction(gameState)
+
+      # calculate the weighting for each minimize action (even distribution over the legal moves).
+      prob = 1.0/len(legalActions)
+      for action in legalActions:
+        successor = gameState.generateSuccessor(agentIndex, action)
+        # if this is the last ghost..
+        if agentIndex == numAgents - 1:
+          # if we are at our depth limit...
+          if depth == self.depth:
+            tempEval = self.evaluationFunction(successor)
+          else:
+            #maximize!
+            tempEval = self.maximize(successor, depth+1, 0)
+        # we have to minimize with another ghost still.
+        else:
+          tempEval = self.minimize(successor, depth, agentIndex+1)
+
+        # add the tempEval to the cumulative total, weighting by probability
+        minEval += tempEval * prob
+
+      return minEval
+
 
     def getAction(self, gameState):
         """
@@ -306,18 +359,57 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
           All ghosts should be modeled as choosing uniformly at random from their
           legal moves.
         """
-        "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.maximize(gameState, 1, 0)
 
 def betterEvaluationFunction(currentGameState):
     """
       Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
       evaluation function (question 5).
 
-      DESCRIPTION: <write something here so we know what you did>
+      DESCRIPTION: Our evaluation function begins with the current game score; this helps maintain rewards for going fast and eating ghosts,
+      so it is the starting point from which the evaluation function adds and subtracts. By weighting it this way, small things like food pellets
+      and time are put into a correct points perspective.
+
+      To encourage pacman to eat food, we subtract 10 points for every food still left in the game. This is a 10 point reward for eating food; just
+      like the in game score.
+
+      To encourage pacman to not die by ghost, we find the nearest maze distance [EDIT: MAZEDISTANCE IS OUR BOTTLENECK] to a ghost and add 20 points for every maze distance away the
+      ghost is. This utilizes our search algorithms (and the maze distance heuristic) from project 1.
+
+      However, pacman can earn points by eating a ghost (if they are scared), and definitely doesn't need to stay away from them! In this case,
+      the heuristic we use to measure a ghost's worth is 20 (scaled for the 200 points you get in game for eating a ghost) minus the distance to
+      that ghost (the amount of time it take to reach it)
+
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    from searchAgents import mazeDistance
+    foodMx = currentGameState.getFood()
+    ghostStates = currentGameState.getGhostStates()
+    position = currentGameState.getPacmanPosition()
+    foodcount = currentGameState.getNumFood()
+    score = currentGameState.getScore()
+
+    nearestGhostDistance = float("inf")
+
+    # evaluate the current state of the ghosts
+    ghostEval = 0
+    for ghost in ghostStates:
+      ghostPosition = (int(ghost.getPosition()[0]), int(ghost.getPosition()[1]))
+      md = mazeDistance(position, ghostPosition, currentGameState)
+
+      if ghost.scaredTimer == 0:
+        if md < nearestGhostDistance:
+          nearestGhostDistance = md
+      #for scared ghosts, evaluate them as 200 points, minus the distance they are away.
+      else:
+        ghostEval += 200 - md
+
+    if nearestGhostDistance == float("inf"):
+      nearestGhostDistance = 0
+
+    ghostEval += nearestGhostDistance
+
+
+    return score - 10*foodcount + 1*ghostEval 
 
 # Abbreviation
 better = betterEvaluationFunction
