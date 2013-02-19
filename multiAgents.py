@@ -138,7 +138,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
     def maximize(self, gameState, depth, agentIndex):
       maxEval= float("-inf")
-      if len(gameState.getLegalActions(0)) == 0:
+      if gameState.isWin() or gameState.isLose():
         return self.evaluationFunction(gameState)
       for action in gameState.getLegalActions(0):
         successor = gameState.generateSuccessor(0, action)
@@ -161,7 +161,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
     def minimize(self, gameState, depth, agentIndex):
       minEval= float("inf")
       numAgents = gameState.getNumAgents()
-      if len(gameState.getLegalActions(agentIndex)) == 0:
+      if gameState.isWin() or gameState.isLose():
         return self.evaluationFunction(gameState)
       for action in gameState.getLegalActions(agentIndex):
         successor = gameState.generateSuccessor(agentIndex, action)
@@ -216,7 +216,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
       maxEval= float("-inf")
 
       # if this is a leaf node with no more actions, return the evaluation function at this state
-      if len(gameState.getLegalActions(0)) == 0:
+      if gameState.isWin() or gameState.isLose():
         return self.evaluationFunction(gameState)
 
       # otherwise, for evert action, find the successor, and run the minimize function on it. when a value
@@ -255,7 +255,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
       numAgents = gameState.getNumAgents()
 
       # if a leaf node, return the eval function!
-      if len(gameState.getLegalActions(agentIndex)) == 0:
+      if gameState.isWin() or gameState.isLose():
         return self.evaluationFunction(gameState)
 
       # for every move possible by this ghost
@@ -299,7 +299,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     """
     def maximize(self, gameState, depth, agentIndex):
       maxEval= float("-inf")
-      if len(gameState.getLegalActions(0)) == 0:
+      if gameState.isWin() or gameState.isLose():
         return self.evaluationFunction(gameState)
 
 
@@ -326,10 +326,10 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       # we will add to this evaluation based on an even weighting of each action.
       minEval= 0
       numAgents = gameState.getNumAgents()
-      legalActions = gameState.getLegalActions(agentIndex)
-      if len(legalActions) == 0:
+      
+      if gameState.isWin() or gameState.isLose():
         return self.evaluationFunction(gameState)
-
+      legalActions = gameState.getLegalActions(agentIndex)
       # calculate the weighting for each minimize action (even distribution over the legal moves).
       prob = 1.0/len(legalActions)
       for action in legalActions:
