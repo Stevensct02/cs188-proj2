@@ -381,7 +381,7 @@ def betterEvaluationFunction(currentGameState):
       that ghost (the amount of time it take to reach it)
 
     """
-    from searchAgents import mazeDistance
+    # from searchAgents import mazeDistance
     foodMx = currentGameState.getFood()
     ghostStates = currentGameState.getGhostStates()
     position = currentGameState.getPacmanPosition()
@@ -394,7 +394,7 @@ def betterEvaluationFunction(currentGameState):
     ghostEval = 0
     for ghost in ghostStates:
       ghostPosition = (int(ghost.getPosition()[0]), int(ghost.getPosition()[1]))
-      md = mazeDistance(position, ghostPosition, currentGameState)
+      md = manhattanDistance(position, ghostPosition)
 
       if ghost.scaredTimer == 0:
         if md < nearestGhostDistance:
